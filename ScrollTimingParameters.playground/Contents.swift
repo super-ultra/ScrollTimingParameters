@@ -31,6 +31,9 @@ struct ScrollTimingParameters {
     var initialVelocity: CGPoint
     var decelerationRate: CGFloat
     var threshold: CGFloat
+}
+
+extension ScrollTimingParameters {
     
     var destination: CGPoint {
         assert(decelerationRate < 1 && decelerationRate > 0)
@@ -83,11 +86,8 @@ let timingParameters = ScrollTimingParameters(initialValue: initialValue,
 let duration = timingParameters.duration
 let destination = timingParameters.destination
 
-// Check calculation accuracy
-assert((destination - timingParameters.value(at: duration)).length <= threshold)
-
 // Make canvas
-let canvasSize = CGSize(width: 400, height: 400)
+let canvasSize = CGSize(width: 600, height: 400)
 let canvasView = UIView()
 canvasView.frame = CGRect(origin: .zero, size: canvasSize)
 canvasView.backgroundColor = .white
@@ -104,7 +104,7 @@ for i in 0..<sampleCount {
     let valueProgress = (timingParameters.value(at: time) - initialValue).length
         / (destination - initialValue).length
     
-    let x = progress * canvasSize.width
+    let x = CGFloat(time) * 200
     let y = canvasSize.height - valueProgress * canvasSize.height
     
     path.addLine(to: CGPoint(x: x, y: y))
