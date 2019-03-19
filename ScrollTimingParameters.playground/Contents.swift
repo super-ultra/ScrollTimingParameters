@@ -1,115 +1,60 @@
 import UIKit
 import PlaygroundSupport
 
-extension CGPoint {
-    
-    var length: CGFloat {
-        return sqrt(x * x + y * y)
-    }
-    
-    static func +(lhs: CGPoint, rhs: CGPoint) -> CGPoint {
-        return CGPoint(x: lhs.x + rhs.x, y: lhs.y + rhs.y)
-    }
-    
-    static func -(lhs: CGPoint, rhs: CGPoint) -> CGPoint {
-        return CGPoint(x: lhs.x - rhs.x, y: lhs.y - rhs.y)
-    }
-    
-    static func *(lhs: CGFloat, rhs: CGPoint) -> CGPoint {
-        return CGPoint(x: lhs * rhs.x, y: lhs * rhs.y)
-    }
-    
-    static func /(lhs: CGPoint, rhs: CGFloat) -> CGPoint {
-        return CGPoint(x: lhs.x / rhs, y: lhs.y / rhs)
-    }
-    
-}
+extension UIView {
 
-
-struct ScrollTimingParameters {
-    var initialValue: CGPoint
-    var initialVelocity: CGPoint
-    var decelerationRate: CGFloat
-    var threshold: CGFloat
-}
-
-extension ScrollTimingParameters {
-    
-    var destination: CGPoint {
-        assert(decelerationRate < 1 && decelerationRate > 0)
+    func scroll(initialVelocity: CGPoint, decelerationRate: CGFloat) -> TimerAnimation {
+        let threshold = CGFloat(0.01)
         
-        let dCoeff = 1000 * log(decelerationRate)
-        return initialValue - initialVelocity / dCoeff
-    }
-    
-    var duration: TimeInterval {
-        assert(decelerationRate < 1 && decelerationRate > 0)
+        let timingParameters = ScrollTimingParameters(
+            initialValue: frame.origin,
+            initialVelocity: initialVelocity,
+            decelerationRate: decelerationRate,
+            threshold: threshold)
         
-        if initialVelocity.length == 0 {
-            return 0
-        }
-        
-        let dCoeff = 1000 * log(decelerationRate)
-        return TimeInterval(log(-dCoeff * threshold / initialVelocity.length) / dCoeff)
+        return TimerAnimation(duration: timingParameters.duration,
+            animations: { [weak self] progress in
+                self?.frame.origin = timingParameters.value(at: progress * timingParameters.duration)
+            })
     }
-    
-    func value(at time: TimeInterval) -> CGPoint {
-        assert(decelerationRate < 1 && decelerationRate > 0)
-        
-        let dCoeff = 1000 * log(decelerationRate)
-        return initialValue + (pow(decelerationRate, CGFloat(1000 * time)) - 1) / dCoeff * initialVelocity
-    }
-    
+
 }
-
-extension CAShapeLayer {
-    
-    static func makeCurveLayer() -> CAShapeLayer {
-        let layer = CAShapeLayer()
-        layer.strokeColor = UIColor.darkGray.cgColor
-        layer.lineWidth = 4
-        layer.fillColor = UIColor.clear.cgColor
-        return layer
-    }
-    
-}
-
-// Setup scroll timing parameters
-let initialValue = CGPoint(x: 0, y: 0)
-let initialVelocity = CGPoint(x: 0, y: 10)
-let decelerationRate = UIScrollView.DecelerationRate.normal.rawValue
-let threshold = CGFloat(0.01)
-
-let timingParameters = ScrollTimingParameters(initialValue: initialValue,
-    initialVelocity: initialVelocity, decelerationRate: decelerationRate, threshold: threshold)
-
-let duration = timingParameters.duration
-let destination = timingParameters.destination
 
 // Make canvas
 let canvasSize = CGSize(width: 600, height: 400)
-let canvasView = UIView()
-canvasView.frame = CGRect(origin: .zero, size: canvasSize)
+let canvasView = UIView(frame: CGRect(origin: .zero, size: canvasSize))
 canvasView.backgroundColor = .white
-let curveLayer = CAShapeLayer.makeCurveLayer()
-canvasView.layer.addSublayer(curveLayer)
 
-// Make path
-let path = UIBezierPath()
-path.move(to: CGPoint(x: 0, y: canvasSize.height))
-let sampleCount = 100
-for i in 0..<sampleCount {
-    let progress = CGFloat(i) / CGFloat(sampleCount)
-    let time = TimeInterval(progress) * duration
-    let valueProgress = (timingParameters.value(at: time) - initialValue).length
-        / (destination - initialValue).length
-    
-    let x = CGFloat(time) * 200
-    let y = canvasSize.height - valueProgress * canvasSize.height
-    
-    path.addLine(to: CGPoint(x: x, y: y))
+// Make circles
+let circleSize = CGSize(width: 64, height: 64)
+
+func makeCircle(color: UIColor, center: CGPoint) -> UIView {
+    let circle = UIView(frame: CGRect(origin: .zero, size: circleSize))
+    circle.center = center
+    circle.backgroundColor = color
+    circle.layer.masksToBounds = true
+    circle.layer.cornerRadius = circleSize.width / 2
+    canvasView.addSubview(circle)
+    return circle
 }
-curveLayer.path = path.cgPath
+
+let normalCircle = makeCircle(
+    color: UIColor(red: 0.98, green: 0.5, blue: 0.45, alpha: 1),
+    center: CGPoint(x: 0.0, y: 0.33 * canvasSize.height))
+
+let fastCircle = makeCircle(
+    color: UIColor(red: 0.5, green: 0, blue: 1, alpha: 1),
+    center: CGPoint(x: 0.0, y: 0.66 * canvasSize.height))
+
+
+// Run animation
+let initialVelocity = CGPoint(x: 1000, y: 0)
+
+let normalAnimation = normalCircle.scroll(initialVelocity: initialVelocity,
+    decelerationRate: UIScrollView.DecelerationRate.normal.rawValue)
+
+let fastAnimation = fastCircle.scroll(initialVelocity: initialVelocity,
+    decelerationRate: UIScrollView.DecelerationRate.fast.rawValue)
 
 // Draw canvas
 PlaygroundPage.current.liveView = canvasView
